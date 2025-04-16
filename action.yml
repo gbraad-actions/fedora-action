@@ -1,0 +1,73 @@
+name: 'Fedora Action'
+description: 'Run commands in a Fedora container environment'
+inputs:
+  run:
+    description: 'Shell command to execute in the Fedora container'
+    required: false
+  script-file:
+    description: 'Path to a shell script to execute in the Fedora container (takes precedence over shell-command)'
+    required: false
+  working-directory:
+    description: 'Working directory where commands will be executed'
+    required: false
+    default: '.'
+  dnf-packages:
+    description: 'Space-separated list of packages to install before running the command'
+    required: false
+outputs:
+  stdout:
+    description: 'Standard output of the command'
+  exit-code:
+    description: 'Exit code of the command'
+runs:
+  using: 'docker'
+  image: 'docker://ghcr.io/gbraad-actions/fedora:stable'
+  entrypoint: '/bin/bash'
+  args:
+    - '-c'
+    - |
+      set -e
+      
+      # Change to working directory if specified
+      cd "${{ inputs.working-directory }}"
+      
+      # Install additional packages if requested
+      if [ ! -z "${{ inputs.dnf-packages }}" ]; then
+        echo "Installing packages: ${{ inputs.dnf-packages }}"
+        dnf install -y ${{ inputs.dnf-packages }}
+      fi
+      
+      # Create temp files for capturing output
+      STDOUT_FILE=$(mktemp)
+      EXIT_CODE_FILE=$(mktemp)
+      
+      # Execute the command or script and capture output
+      if [ ! -z "${{ inputs.script-file }}" ]; then
+        if [ -f "${{ inputs.script-file }}" ]; then
+          echo "Executing script: ${{ inputs.script-file }}"
+          chmod +x "${{ inputs.script-file }}"
+          bash "${{ inputs.script-file }}" | tee ${STDOUT_FILE} || echo $? > ${EXIT_CODE_FILE}
+        else
+          echo "Error: Script file not found: ${{ inputs.script-file }}"
+          echo 1 > ${EXIT_CODE_FILE}
+        fi
+      elif [ ! -z "${{ inputs.run }}" ]; then
+        echo "Executing command: ${{ inputs.run }}"
+        bash -c "${{ inputs.run }}" | tee ${STDOUT_FILE} || echo $? > ${EXIT_CODE_FILE}
+      else
+        echo "Error: Either run or script-file must be provided"
+        echo 1 > ${EXIT_CODE_FILE}
+      fi
+      
+      # Set outputs
+      if [ -s ${EXIT_CODE_FILE} ]; then
+        exit_code=$(cat ${EXIT_CODE_FILE})
+      else
+        exit_code=0
+      fi
+      
+      echo "::set-output name=stdout::$(cat ${STDOUT_FILE})"
+      echo "::set-output name=exit-code::${exit_code}"
+      
+      # Return the actual exit code
+      exit ${exit_code}
