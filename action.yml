@@ -66,8 +66,8 @@ runs:
         exit_code=0
       fi
       
-      echo "::set-output name=stdout::$(cat ${STDOUT_FILE})"
-      echo "::set-output name=exit-code::${exit_code}"
+      echo "stdout=$(cat ${STDOUT_FILE})" >> $GITHUB_OUTPUT
+      echo "exit-code=${exit_code}" >> $GITHUB_OUTPUT
       
       # Return the actual exit code
       exit ${exit_code}
