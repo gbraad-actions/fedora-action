@@ -66,7 +66,11 @@ runs:
         exit_code=0
       fi
       
-      echo "stdout=$(cat ${STDOUT_FILE})" >> $GITHUB_OUTPUT
+      # For multi-line output, use the EOF delimiter format
+      echo "stdout<<EOF" >> $GITHUB_OUTPUT
+      cat ${STDOUT_FILE} >> $GITHUB_OUTPUT
+      echo "EOF" >> $GITHUB_OUTPUT
+
       echo "exit-code=${exit_code}" >> $GITHUB_OUTPUT
       
       # Return the actual exit code
